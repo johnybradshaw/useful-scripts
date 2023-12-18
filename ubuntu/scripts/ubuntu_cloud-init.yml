@@ -1,0 +1,197 @@
+#cloud-config
+# Set the hostname
+preserve_hostname: false
+
+# Secure the system
+ssh_pwauth: false # Disable password authentication
+disable_root: true # Disable root login
+no_ssh_fingerprints: true # Supress SSH key fingerprints in console
+ssh_deletekeys: true
+ssh_genkeytypes: [ed25519]
+disable_root_opts: no-port-forwarding,no-agent-forwarding,no-X11-forwarding
+allow_public_ssh_keys: true
+ssh_quiet_keygen: true
+ssh_publish_hostkeys:
+  enabled: true
+  blacklist: [dsa]
+ssh_import_id:
+ - gh:johnybradshaw
+ssh:
+  emit_keys_to_console: false # Set to true to print SSH host keys to console
+random_seed:
+  file: /dev/urandom
+  command: ["pollinate", "-r"]
+  command_required: true
+chpasswd:
+  expire: false
+  users:
+    - name: root
+      type: RANDOM
+    - name: ubuntu
+      type: RANDOM
+    - name: john
+      type: RANDOM
+manage_etc_hosts: localhost # Update /etc/hosts with hostname
+ubuntu_advantage:
+  token: "__UBUNTU_ADVANTAGE_TOKEN__"
+    
+# Create useful groups
+groups:
+  - sudo
+  - docker
+  - webmin
+
+# Create users
+users:
+  - name: acc-user  
+    groups: sudo, docker, users, admin
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKhHLVQLBNkgCTaDeh5S5ZWLKsB0K1hp5SrTiZJUZUhY Linode(jobradsh)"
+      - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMkrFmYBRfiNCD4/YirciNNZvh14jyW+7Otekn8BW45n jobradsh@akamai.com"
+
+# Install updates and packages on first boot
+package_update: true
+package_upgrade: true
+package_reboot_if_required: true
+packages:
+  # Security packages
+  - apparmor
+  - apparmor-profiles
+  - apparmor-profiles-extra
+  - apparmor-notify
+  - apparmor-utils
+  - auditd
+  - audispd-plugins
+  - fail2ban
+  - unattended-upgrades
+  - rkhunter
+  - clamav
+  - clamav-daemon
+  - clamav-freshclam
+  - ufw
+  - aide
+  # Utilities
+  - neofetch
+  - tldr
+  - htop
+  - jq
+  - curl
+  - tmux
+  # Webmin support
+  - apache2 # Required for certbot
+  - certbot # Enables Let's Encrypt
+# Install snap packages
+snap:
+  commands:
+    - ['install', 'canonical-livepatch']
+    - ['install', 'linode-cli']
+
+# Add files to the system, all have been base64 encoded to avoid issues with special characters
+write_files:
+  # Update rkhunter.conf to enable automatic updates
+  - path: /usr/local/bin/update-rkhunter-conf.sh
+    encoding: b64
+    owner: root:root
+    permissions: '0755'
+    content: IyEvYmluL2Jhc2gKc2VkIC1pICdzL01JUlJPUlNfTU9ERT0xL01JUlJPUlNfTU9ERT0wLycgL2V0Yy9ya2h1bnRlci5jb25mCnNlZCAtaSAncy9VUERBVEVfTUlSUk9SUz0wL1VQREFURV9NSVJST1JTPTEvJyAvZXRjL3JraHVudGVyLmNvbmYKc2VkIC1pICdzfFdFQl9DTUQ9Ii9iaW4vZmFsc2UifFdFQl9DTUQ9IiJ8JyAvZXRjL3JraHVudGVyLmNvbmY=
+  # Write a basic AIDE configuration file
+  - path: /etc/aide/aide.conf
+    encoding: b64
+    owner: root:root
+    permissions: '0644'
+    content: IyBDb25maWd1cmF0aW9uIGZvciBBSURFCiMgRGVmaW5lIHRoZSBkYXRhYmFzZXMgbG9jYXRpb24KZGF0YWJhc2U9ZmlsZTovdmFyL2xpYi9haWRlL2FpZGUuZGIKZGF0YWJhc2Vfb3V0PWZpbGU6L3Zhci9saWIvYWlkZS9haWRlLmRiLm5ldwojIERlZmluZSB0aGUgZGlyZWN0b3JpZXMgdG8gbW9uaXRvcgovYmluICAgIE5PUk1BTAovc2JpbiAgIE5PUk1BTAovbGliICAgIE5PUk1BTAovdXNyICAgIE5PUk1BTAovZXRjICAgIE5PUk1BTAohL2V0Yy9ob3N0cy5kZW55CiEvZXRjL2hvc3RzLmFsbG93CiEvdmFyL2xvZwohL3Zhci9saWIvYWlkZQohL3Zhci9saWIvYXB0CiEvdmFyL2xpYi9kcGtnCiEvdmFyL2NhY2hlCiEvcnVuCiMgU2V0IHRoZSBydWxlcyBmb3IgdGhlIGRpcmVjdG9yaWVzCk5PUk1BTCA9IHAraStuK3UrZytzK20rUyttZDUrc2hhMQ==
+  # Automatically logout inactive tty sessions after 10 minutes
+  - path: /etc/profile.d/autologout-tty.sh
+    encoding: b64
+    owner: root:root
+    content: IyEvYmluL2Jhc2gKIyBBdXRvLWxvZ291dCBmb3IgdHR5IHNlc3Npb25zIGFmdGVyIGEgcGVyaW9kIG9mIGluYWN0aXZpdHkKaWYgW1sgIiQodHR5KSIgPX4gL2Rldi90dHlbMC05XSsgXV0gfHwgW1sgIiQodHR5KSIgPX4gL2Rldi90dHlTWzAtOV0rIF1dOyB0aGVuCiAgIyBTZXQgVE1PVVQgdG8gNjAwIHNlY29uZHMgKDEwIG1pbnV0ZXMpIGZvciB0dHkgYW5kIHR0eVMgc2Vzc2lvbnMKICBleHBvcnQgVE1PVVQ9NjAwCiAgcmVhZG9ubHkgVE1PVVQKICBSRUQ9J1wwMzNbMTszMW0nCiAgTkM9J1wwMzNbMG0nCiAgZWNobyAtZSAiXG5cblRvIGV4aXQgdGhlIGNvbnNvbGUsIHByZXNzICR7UkVEfUNUUkwrQSR7TkN9IHRoZW4gJHtSRUR9RCR7TkN9IHRvIHJldHVybiB0byB0aGUgaG9zdCBtYWNoaW5lLFxuYW5kIHRoZW4gcHJlc3MgJHtSRUR9Q1RSTCtEJHtOQ30gdG8gcmV0dXJuIHRvIHRoZSBMaXNoIG1lbnVcblxuIgpmaQ==
+    permissions: '0755'
+  # Set the hostname via Metadata
+  - path: /usr/local/bin/set-hostname.sh
+    encoding: b64
+    owner: root:root
+    permissions: '0700'
+    content: IyEvYmluL2Jhc2gKTUVUQURBVEFfVE9LRU49IiQoY3VybCAtcyAtWCBQVVQgLUggJ01ldGFkYXRhLVRva2VuLUV4cGlyeS1TZWNvbmRzOiAzNjAwJyAnaHR0cDovLzE2OS4yNTQuMTY5LjI1NC92MS90b2tlbicpIgpNRVRBREFUQV9VUkw9Imh0dHA6Ly8xNjkuMjU0LjE2OS4yNTQvdjEvaW5zdGFuY2UiCk1FVEFEQVRBPSQoY3VybCAtcyAtSCAiTWV0YWRhdGEtVG9rZW46ICRNRVRBREFUQV9UT0tFTiIgIiRNRVRBREFUQV9VUkwiKQpMQUJFTD0kKGVjaG8gIiRNRVRBREFUQSIgfCBhd2sgJy9ebGFiZWw6LyB7cHJpbnQgJDJ9JykKUkVHSU9OPSQoZWNobyAiJE1FVEFEQVRBIiB8IGF3ayAnL15yZWdpb246LyB7cHJpbnQgJDJ9JykKVExEPSQoZWNobyAiJE1FVEFEQVRBIiB8IGF3ayAnL150YWdzOiB0bGQ6LyB7cHJpbnQgJDN9JykKaG9zdG5hbWVjdGwgaG9zdG5hbWUgIiRMQUJFTC4kUkVHSU9OLiRUTEQi
+
+runcmd:
+  # Set the hostname
+  - /usr/local/bin/set-hostname.sh
+  
+  # Disable ctrl-alt-del
+  - ['systemctl', 'mask', 'ctrl-alt-del.target']
+  - ['systemctl', 'daemon-reload']
+
+  # Configure fail2ban
+  - echo "[DEFAULT]\nbantime = 3600\nfindtime = 600\nmaxretry = 3" > /etc/fail2ban/jail.local
+  - echo "[sshd]\nenabled = true\nport = ssh\nfilter = sshd\nlogpath = /var/log/auth.log\nmaxretry = 3" >> /etc/fail2ban/jail.local
+  - echo "[sshd-ddos]\nenabled = true\nport = ssh\nfilter = sshd-ddos\nlogpath = /var/log/auth.log\nmaxretry = 3" >> /etc/fail2ban/jail.local
+  - echo "[apache-auth]\nenabled = true\nport = http,https\nfilter = apache-auth\nlogpath = /var/log/apache2/*error.log\nmaxretry = 3" >> /etc/fail2ban/jail.local
+  - echo "[apache-badbots]\nenabled = true\nport = http,https\nfilter = apache-badbots\nlogpath = /var/log/apache2/*access.log\nmaxretry = 3" >> /etc/fail2ban/jail.local
+  - echo "[apache-noscript]\nenabled = true\nport = http,https\nfilter = apache-noscript\nlogpath = /var/log/apache2/*error.log\nmaxretry = 3" >> /etc/fail2ban/jail.local
+  - echo "[apache-overflows]\nenabled = true\nport = http,https\nfilter = apache-overflows\nlogpath = /var/log/apache2/*error.log\nmaxretry = 3" >> /etc/fail2ban/jail.local
+  - echo "[apache-nohome]\nenabled = true\nport = http,https\nfilter = apache-nohome\nlogpath = /var/log/apache2/*error.log\nmaxretry = 3" >> /etc/fail2ban/jail.local
+  - echo "[apache-botsearch]\nenabled = true\nport = http,https\nfilter = apache-botsearch\nlogpath = /var/log/apache2/*access.log\nmaxretry = 3" >> /etc/fail2ban/jail.local
+  - echo "[apache-fakegooglebot]\nenabled = true\nport = http,https\nfilter = apache-fakegooglebot\nlogpath = /var/log/apache2/*access.log\nmaxretry = 3" >> /etc/fail2ban/jail.local
+  - echo "[apache-modsecurity]\nenabled = true\nport = http,https\nfilter = apache-modsecurity\nlogpath = /var/log/apache2/*error.log\nmaxretry = 3" >> /etc/fail2ban/jail.local
+  - echo "[apache-shellshock]\nenabled = true\nport = http,https\nfilter = apache-shellshock\nlogpath = /var/log/apache2/*error.log\nmaxretry = 3" >> /etc/fail2ban/jail.local
+  - echo "[apache-shellshock-common]\nenabled = true\nport = http,https\nfilter = apache-shellshock-common\nlogpath = /var/log/apache2/*error.log\nmaxretry = 3" >> /etc/fail2ban/jail.local
+  - echo "[apache-shellshock-ip]\nenabled = true\nport = http,https\nfilter = apache-shellshock-ip\nlogpath = /var/log/apache2/*error.log\nmaxretry = 3" >> /etc/fail2ban/jail.local
+  - echo "[webmin-auth]\nenabled = true\nport = 10000\nfilter = webmin-auth\nlogpath = /var/log/auth.log\nmaxretry = 3" >> /etc/fail2ban/jail.local
+  - ['systemctl', 'enable', 'fail2ban', '--now']
+
+  # Generate a random password for root and set it
+  - echo "root:$(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c${1:-64})" | chpasswd
+
+  # Configure neofetch to show system info at login
+  - echo "neofetch" >> /etc/profile.d/login.sh
+
+  # Configure unattended-upgrades to run hourly
+  - echo "APT::Periodic::Update-Package-Lists \"1\";" > /etc/apt/apt.conf.d/20auto-upgrades
+  - echo "APT::Periodic::Download-Upgradeable-Packages \"1\";" >> /etc/apt/apt.conf.d/20auto-upgrades
+  - echo "APT::Periodic::AutocleanInterval \"7\";" >> /etc/apt/apt.conf.d/20auto-upgrades
+  - echo "APT::Periodic::Unattended-Upgrade \"1\";" >> /etc/apt/apt.conf.d/20auto-upgrades
+  - (crontab -l 2>/dev/null; echo "0 * * * * /usr/bin/unattended-upgrade") | crontab -
+
+  # Configure rkhunter
+  - rkhunter --propupd
+  - rkhunter --update
+
+  # Configure UFW
+  - ufw allow ssh
+  - ufw allow http # Required for apache2 & letsencrypt
+  - ufw allow https # Required for apache2 & letsencrypt
+  - ufw allow 10000/tcp # Webmin
+  - ufw allow 10001/tcp # Webmin (RPC)
+  - ufw enable
+
+  # Install Webmin
+  - curl -o setup-repos.sh https://raw.githubusercontent.com/webmin/webmin/master/setup-repos.sh
+  - echo y | sh setup-repos.sh
+  - apt-get install webmin --install-recommends -y
+  - apt update
+  - apt upgrade -y
+
+  # Install docker
+  - curl -fsSL https://get.docker.com | sh
+
+  # Update tl;dr
+  - tldr --update
+
+  # Activate AppArmor
+  - ['aa-enabled', '&&', 'echo', '"AppArmor is enabled."', '||', 'echo', '"AppArmor is not enabled."']
+  - ['aa-complain', '/etc/apparmor.d/*'] # Set all profiles to complain mode
+
+final_message: "Cloud-Init has finished at $timestamp.\n
+  Version: $version\n
+  Datasource: $datasource\n
+  Uptime: $uptime\n"
+
+# Reboot the system after Cloud-Init completes
+power_state:
+  delay: "+1"
+  mode: reboot
+  message: "Reboot after Cloud-Init completion"
+  timeout: 30
+  condition: True
