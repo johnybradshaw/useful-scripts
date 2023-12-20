@@ -183,6 +183,11 @@ runcmd:
   - ['aa-enabled', '&&', 'echo', '"AppArmor is enabled."', '||', 'echo', '"AppArmor is not enabled."']
   - ['aa-complain', '/etc/apparmor.d/*'] # Set all profiles to complain mode
 
+  # Mitigation for SSH Terrapin
+  - echo "Ciphers -chacha20-poly1305@openssh.com" >> /etc/ssh/sshd_config
+  - echo "Ciphers -cbc" >> /etc/ssh/sshd_config
+  - ['systemctl', 'restart', 'sshd']
+
 final_message: "Cloud-Init has finished at $timestamp.\n
   Version: $version\n
   Datasource: $datasource\n
