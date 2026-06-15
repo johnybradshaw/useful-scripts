@@ -10,6 +10,12 @@ Scripts that are useful for doing things
 | auto-logout.sh | Sets a 10 minute timeout on the *physical* console (tty) |
 | install_rstudio.sh | Installs R-Studio and required dependencies |
 
+## GitHub
+
+| File/Folder Name | Explanation |
+| --- | --- |
+| github/protect-default-branch.sh | Bulk-applies branch protection (require PR, block direct pushes) to the default branch of every repo you own |
+
 ## macOS
 
 | File/Folder Name | Explanation |
